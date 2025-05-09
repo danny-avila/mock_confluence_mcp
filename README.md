@@ -22,6 +22,14 @@ PORT=8003 python confluence_mcp.py
 
 The server provides mock implementations of Confluence search functionality without requiring an actual Confluence instance.
 
+## Test Basic Authentication
+
+You can set a mock bearer token in the environment variable `MOCK_BEARER_TOKEN` to test authentication.
+
+```bash
+export MOCK_BEARER_TOKEN=your_mock_token
+```
+
 ### Test with LibreChat
 
 `librechat.yaml`
@@ -29,6 +37,9 @@ The server provides mock implementations of Confluence search functionality with
 mcpServers:
   confluence:
     type: sse
-    url: http://localhost:8003/sse
+    url: http://localhost:8002/sse # or use the port you set
     timeout: 300000  # 5 minutes timeout for long operations
+    # If you want to test with a bearer token:
+    headers:
+      Authorization: Bearer ${MOCK_BEARER_TOKEN}
 ```

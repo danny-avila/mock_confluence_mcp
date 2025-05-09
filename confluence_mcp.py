@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
@@ -218,6 +219,22 @@ sse = SseServerTransport("/messages")
 # Define handler function
 async def handle_sse(request: Request):
     """Handle SSE connections."""
+    # Check for bearer token authentication if MOCK_BEARER_TOKEN is defined
+    mock_token = os.environ.get("MOCK_BEARER_TOKEN")
+    if mock_token:
+        auth_header = request.headers.get("Authorization")
+        expected_auth = f"Bearer {mock_token}"
+        
+        if not auth_header or auth_header != expected_auth:
+            logger.warning("Unauthorized access attempt - invalid or missing bearer token")
+            from starlette.responses import JSONResponse
+            return JSONResponse(
+                {"error": "Unauthorized - invalid or missing bearer token"},
+                status_code=401
+            )
+        
+        logger.info("Authenticated connection established")
+    
     async with sse.connect_sse(request.scope, request.receive, request._send) as streams:
         await mcp._mcp_server.run(
             streams[0], 
@@ -235,11 +252,11 @@ starlette_app = Starlette(
 
 # Entry point for running the server
 if __name__ == "__main__":
-    import os
-    
     # Get port from environment variable or use default
     port = int(os.environ.get("PORT", 8002))
     
     # Run the server
     print(f"Starting Confluence MCP server with SSE transport on port {port}")
+    if os.environ.get("MOCK_BEARER_TOKEN"):
+        print("Bearer token authentication is enabled.")
     uvicorn.run(starlette_app, host="0.0.0.0", port=port)
