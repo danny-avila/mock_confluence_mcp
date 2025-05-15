@@ -3,13 +3,21 @@
 import json
 import logging
 import os
+import sys
+import pdb
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 from mcp.server.fastmcp import FastMCP
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging with more detailed format and DEBUG level
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # Create the FastMCP instance
@@ -211,6 +219,7 @@ from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
 from starlette.routing import Route, Mount
 from starlette.requests import Request
+from starlette.responses import JSONResponse
 import uvicorn
 
 # Create SSE transport
@@ -219,15 +228,22 @@ sse = SseServerTransport("/messages")
 # Define handler function
 async def handle_sse(request: Request):
     """Handle SSE connections."""
+    # Log all request headers for debugging
+    logger.debug("Request headers:")
+    for header_name, header_value in request.headers.items():
+        logger.debug(f"  {header_name}: {header_value}")
+    
     # Check for bearer token authentication if MOCK_BEARER_TOKEN is defined
     mock_token = os.environ.get("MOCK_BEARER_TOKEN")
     if mock_token:
         auth_header = request.headers.get("Authorization")
         expected_auth = f"Bearer {mock_token}"
         
+        logger.debug(f"Expected auth: {expected_auth}")
+        logger.debug(f"Received auth: {auth_header}")
+        
         if not auth_header or auth_header != expected_auth:
             logger.warning("Unauthorized access attempt - invalid or missing bearer token")
-            from starlette.responses import JSONResponse
             return JSONResponse(
                 {"error": "Unauthorized - invalid or missing bearer token"},
                 status_code=401
@@ -235,28 +251,55 @@ async def handle_sse(request: Request):
         
         logger.info("Authenticated connection established")
     
-    async with sse.connect_sse(request.scope, request.receive, request._send) as streams:
-        await mcp._mcp_server.run(
-            streams[0], 
-            streams[1], 
-            mcp._mcp_server.create_initialization_options()
-        )
+    try:
+        logger.debug("Connecting SSE...")
+        async with sse.connect_sse(request.scope, request.receive, request._send) as streams:
+            logger.debug("SSE connected, running MCP server...")
+            await mcp._mcp_server.run(
+                streams[0], 
+                streams[1], 
+                mcp._mcp_server.create_initialization_options()
+            )
+            logger.debug("MCP server run completed")
+        return None  # Explicitly return None after the async with block completes
+    except Exception as e:
+        logger.exception(f"Error in handle_sse: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 # Create Starlette app with routes
 starlette_app = Starlette(
     routes=[
         Route("/sse", endpoint=handle_sse),
         Mount("/messages", app=sse.handle_post_message),
-    ]
+    ],
+    debug=True  # Enable debug mode for more detailed error messages
 )
+
+# Debug function to set a breakpoint
+def debug_breakpoint():
+    """Set a breakpoint for debugging."""
+    pdb.set_trace()
 
 # Entry point for running the server
 if __name__ == "__main__":
     # Get port from environment variable or use default
     port = int(os.environ.get("PORT", 8002))
     
-    # Run the server
+    # Check if debug mode is enabled
+    debug_mode = os.environ.get("DEBUG", "").lower() in ("true", "1", "yes")
+    
+    # Print startup information
     print(f"Starting Confluence MCP server with SSE transport on port {port}")
+    print(f"Debug mode: {'Enabled' if debug_mode else 'Disabled'}")
     if os.environ.get("MOCK_BEARER_TOKEN"):
         print("Bearer token authentication is enabled.")
-    uvicorn.run(starlette_app, host="0.0.0.0", port=port)
+    print("To enable debug breakpoints, set DEBUG=true in your environment")
+    print("To debug, you can add 'debug_breakpoint()' at any point in the code")
+    
+    # Run the server with debug settings
+    uvicorn.run(
+        starlette_app, 
+        host="0.0.0.0", 
+        port=port,
+        log_level="debug" if debug_mode else "info"
+    )
