@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Confluence MCP Server",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/confluence_mcp.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "DEBUG": "true",
+                "MOCK_BEARER_TOKEN": "test",
+                "PORT": "8002",
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "python": "${workspaceFolder}/venv/bin/python",
+            "cwd": "${workspaceFolder}",
+            "stopOnEntry": false,
+            "args": []
+        }
+    ]
+}

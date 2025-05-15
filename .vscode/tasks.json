@@ -1,0 +1,29 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Run Confluence MCP Server",
+            "type": "shell",
+            "command": "source ${workspaceFolder}/venv/bin/activate && DEBUG=true MOCK_BEARER_TOKEN=test PORT=8002 python ${workspaceFolder}/confluence_mcp.py",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Test SSE Connection",
+            "type": "shell",
+            "command": "curl -H \"Authorization: Bearer test\" http://localhost:8002/sse",
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        }
+    ]
+}
